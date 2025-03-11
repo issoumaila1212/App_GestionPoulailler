@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_poulet/screens/add_depense_screen.dart';
+import 'package:app_poulet/database/depense_service.dart';
 
 class DepenseScreen extends StatefulWidget {
   const DepenseScreen({super.key});
@@ -9,42 +10,26 @@ class DepenseScreen extends StatefulWidget {
 }
 
 class _DepenseScreenState extends State<DepenseScreen> {
-  List<Map<String, dynamic>> depenses = [
-    {
-      "cycle": "Cycle 1 - Poulets de chair",
-      "type": "Nourriture",
-      "amount": "15000 FCFA",
-      "date": "2024-01-10",
-      "description": "Achat de maïs et tourteau de soja",
-    },
-    {
-      "cycle": "Cycle 1 - Poulets de chair",
-      "type": "Médicaments",
-      "amount": "5000 FCFA",
-      "date": "2024-01-15",
-      "description": "Vaccination des poulets",
-    },
-    {
-      "cycle": "Cycle 2 - Poules pondeuses",
-      "type": "Matériel",
-      "amount": "12000 FCFA",
-      "date": "2024-02-01",
-      "description": "Achat de lampes chauffantes",
-    },
-  ];
+  List<Map<String, dynamic>> depenses = [];
 
-  // ✅ Ajouter une nouvelle dépense
-  void _addDepense(Map<String, dynamic> newDepense) {
+  @override
+  void initState() {
+    super.initState();
+    _loadDepenses();
+  }
+
+  // ✅ Charger les dépenses depuis la base de données SQLite
+  Future<void> _loadDepenses() async {
+    List<Map<String, dynamic>> data = await DepenseService().getDepenses();
     setState(() {
-      depenses.add(newDepense);
+      depenses = data;
     });
   }
 
-  // ❌ Supprimer une dépense
-  void _deleteDepense(int index) {
-    setState(() {
-      depenses.removeAt(index);
-    });
+  // ✅ Supprimer une dépense
+  Future<void> _deleteDepense(int id) async {
+    await DepenseService().deleteDepense(id);
+    _loadDepenses(); // Recharger la liste après suppression
   }
 
   @override
@@ -52,46 +37,66 @@ class _DepenseScreenState extends State<DepenseScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Gestion des Dépenses"),
-        backgroundColor: Colors.redAccent,
+        backgroundColor: Colors.orange,
       ),
       body: depenses.isEmpty
-          ? const Center(child: Text("Aucune dépense enregistrée."))
+          ? const Center(
+              child: Text(
+                "Aucune dépense enregistrée.",
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+            )
           : ListView.builder(
               padding: const EdgeInsets.all(16),
               itemCount: depenses.length,
               itemBuilder: (context, index) {
                 final depense = depenses[index];
+
                 return Card(
-                  elevation: 3,
+                  elevation: 4,
                   margin: const EdgeInsets.only(bottom: 10),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: ListTile(
-                    title: Text(
-                      "${depense["cycle"]} - ${depense["type"]}",
-                      style: const TextStyle(
-                          fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text(
-                        "Montant: ${depense["amount"]} \nDate: ${depense["date"]}"),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteDepense(index),
+                  child: ListTileTheme(
+                    contentPadding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.orange.shade100,
+                        child: Icon(Icons.attach_money, color: Colors.orange.shade800),
+                      ),
+                      title: Text(
+                        "${depense["type"]} - ${depense["amount"]} FCFA",
+                        style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      ),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text("Date: ${depense["date"]}", style: const TextStyle(fontSize: 14)),
+                          if (depense["description"] != null && depense["description"].isNotEmpty)
+                            Text(depense["description"], style: const TextStyle(fontSize: 14, color: Colors.grey)),
+                        ],
+                      ),
+                      trailing: IconButton(
+                        icon: const Icon(Icons.delete, color: Colors.red),
+                        onPressed: () => _deleteDepense(depense["id"]),
+                      ),
                     ),
                   ),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.redAccent,
+        backgroundColor: Colors.orange,
         onPressed: () async {
           final newDepense = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddDepenseScreen()),
           );
-          if (newDepense != null) {
-            _addDepense(newDepense);
+
+          if (newDepense != null && newDepense is Map<String, dynamic>) {
+            await DepenseService().addDepense(newDepense);
+            _loadDepenses(); // Recharger la liste
           }
         },
         child: const Icon(Icons.add),

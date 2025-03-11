@@ -1,26 +1,60 @@
 import 'package:flutter/material.dart';
 import 'package:app_poulet/widgets/summary_cart.dart';
+import 'package:app_poulet/database/cycle_service.dart';
+import 'package:app_poulet/database/depense_service.dart';
+import 'package:app_poulet/database/perte_service.dart';
+import 'package:app_poulet/database/vente_service.dart';
 
-class CycleDetailScreen extends StatelessWidget {
+class CycleDetailScreen extends StatefulWidget {
   final Map<String, dynamic> cycle; // ✅ Données dynamiques du cycle
 
-  const CycleDetailScreen(
-      {super.key, required this.cycle}); // ✅ Ajout de "required this.cycle"
+  const CycleDetailScreen({super.key, required this.cycle});
+
+  @override
+  _CycleDetailScreenState createState() => _CycleDetailScreenState();
+}
+
+class _CycleDetailScreenState extends State<CycleDetailScreen> {
+  int totalPertes = 0;
+  double totalDepenses = 0;
+  double totalVentes = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCycleDetails();
+  }
+
+  Future<void> _loadCycleDetails() async {
+    int pertes = await PerteService().getTotalPertes(widget.cycle["id"]);
+    double depenses = await DepenseService().getTotalDepenses(widget.cycle["id"]);
+    double ventes = await VenteService().getTotalVentes(widget.cycle["id"]);
+
+    setState(() {
+      totalPertes = pertes;
+      totalDepenses = depenses;
+      totalVentes = ventes;
+    });
+  }
+
+  Future<void> _deleteCycle() async {
+    await CycleService().deleteCycle(widget.cycle["id"]);
+    Navigator.pop(context, true);
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(cycle["name"]),
+        title: Text(widget.cycle["name"]),
         backgroundColor: Colors.blueAccent,
-        elevation: 0,
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // 🟢 Section principale avec fond arrondi
+            // 🟢 Informations générales du cycle
             Container(
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
@@ -31,7 +65,7 @@ class CycleDetailScreen extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    cycle["name"], // ✅ Affichage dynamique du nom
+                    widget.cycle["name"],
                     style: const TextStyle(
                       fontSize: 22,
                       fontWeight: FontWeight.bold,
@@ -39,20 +73,16 @@ class CycleDetailScreen extends StatelessWidget {
                     ),
                   ),
                   const SizedBox(height: 10),
+                  Text("📅 Date de début : ${widget.cycle["start_date"]}",
+                      style: const TextStyle(fontSize: 16, color: Colors.white70)),
+                  Text("🐔 Nombre initial : ${widget.cycle["initial_count"]}",
+                      style: const TextStyle(fontSize: 16, color: Colors.white70)),
                   Text(
-                    "📅 Date de début : ${cycle["startDate"]}",
-                    style: const TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                  Text(
-                    "🐔 Nombre initial : ${cycle["initialCount"]}",
-                    style: const TextStyle(fontSize: 16, color: Colors.white70),
-                  ),
-                  Text(
-                    "📌 Statut : ${cycle["status"]}",
+                    "📌 Statut : ${widget.cycle["status"]}",
                     style: TextStyle(
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
-                      color: cycle["status"] == "En cours"
+                      color: widget.cycle["status"] == "En cours"
                           ? Colors.greenAccent
                           : Colors.redAccent,
                     ),
@@ -63,7 +93,7 @@ class CycleDetailScreen extends StatelessWidget {
 
             const SizedBox(height: 20),
 
-            // 🟠 Résumé sous forme de cartes stylées
+            // 🟠 Résumé des transactions
             const Text(
               "Résumé",
               style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
@@ -74,7 +104,7 @@ class CycleDetailScreen extends StatelessWidget {
                 Expanded(
                   child: SummaryCard(
                     title: 'Pertes',
-                    value: '5', // Placeholder
+                    value: '$totalPertes',
                     icon: Icons.warning,
                     color: Colors.red,
                   ),
@@ -83,7 +113,7 @@ class CycleDetailScreen extends StatelessWidget {
                 Expanded(
                   child: SummaryCard(
                     title: 'Dépenses',
-                    value: '2000 FCFA', // Placeholder
+                    value: '$totalDepenses FCFA',
                     icon: Icons.money_off,
                     color: Colors.orange,
                   ),
@@ -92,7 +122,7 @@ class CycleDetailScreen extends StatelessWidget {
                 Expanded(
                   child: SummaryCard(
                     title: 'Ventes',
-                    value: '5000 FCFA', // Placeholder
+                    value: '$totalVentes FCFA',
                     icon: Icons.shopping_cart,
                     color: Colors.green,
                   ),
@@ -109,26 +139,22 @@ class CycleDetailScreen extends StatelessWidget {
               children: [
                 ElevatedButton.icon(
                   onPressed: () {
-                    // 🟢 Action de modification à ajouter ici
+                    // 🟢 Ajoutez ici l'action de modification
                   },
                   icon: const Icon(Icons.edit, color: Colors.white),
                   label: const Text("Modifier"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.orange,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                 ),
                 ElevatedButton.icon(
-                  onPressed: () {
-                    _showDeleteDialog(context);
-                  },
+                  onPressed: () => _showDeleteDialog(context),
                   icon: const Icon(Icons.delete, color: Colors.white),
                   label: const Text("Supprimer"),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.red,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                   ),
                 ),
               ],
@@ -155,11 +181,10 @@ class CycleDetailScreen extends StatelessWidget {
             ),
             TextButton(
               onPressed: () {
-                // 🚨 Suppression à implémenter
+                _deleteCycle();
                 Navigator.pop(context);
               },
-              child:
-                  const Text("Supprimer", style: TextStyle(color: Colors.red)),
+              child: const Text("Supprimer", style: TextStyle(color: Colors.red)),
             ),
           ],
         );

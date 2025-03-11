@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_poulet/screens/add_vente_screen.dart';
+import 'package:app_poulet/database/vente_service.dart';
 
 class VenteScreen extends StatefulWidget {
   const VenteScreen({super.key});
@@ -9,35 +10,24 @@ class VenteScreen extends StatefulWidget {
 }
 
 class _VenteScreenState extends State<VenteScreen> {
-  List<Map<String, dynamic>> ventes = [
-    {
-      "cycle": "Cycle 1 - Poulets de chair",
-      "type": "Vente directe",
-      "quantity": "50",
-      "price": "50000 FCFA",
-      "date": "2024-03-05",
-    },
-    {
-      "cycle": "Cycle 2 - Poules pondeuses",
-      "type": "Gros",
-      "quantity": "20",
-      "price": "20000 FCFA",
-      "date": "2024-02-15",
-    },
-  ];
+  List<Map<String, dynamic>> ventes = [];
 
-  // ✅ Ajouter une nouvelle vente
-  void _addVente(Map<String, dynamic> newVente) {
+  @override
+  void initState() {
+    super.initState();
+    _loadVentes();
+  }
+
+  Future<void> _loadVentes() async {
+    List<Map<String, dynamic>> data = await VenteService().getVentes();
     setState(() {
-      ventes.add(newVente);
+      ventes = data;
     });
   }
 
-  // ❌ Supprimer une vente
-  void _deleteVente(int index) {
-    setState(() {
-      ventes.removeAt(index);
-    });
+  Future<void> _deleteVente(int id) async {
+    await VenteService().deleteVente(id);
+    _loadVentes();
   }
 
   @override
@@ -54,6 +44,7 @@ class _VenteScreenState extends State<VenteScreen> {
               itemCount: ventes.length,
               itemBuilder: (context, index) {
                 final vente = ventes[index];
+
                 return Card(
                   elevation: 3,
                   margin: const EdgeInsets.only(bottom: 10),
@@ -62,13 +53,13 @@ class _VenteScreenState extends State<VenteScreen> {
                   ),
                   child: ListTile(
                     title: Text(
-                      "${vente["cycle"]} - ${vente["type"]}",
+                      "${vente["type"]} - ${vente["quantity"]} vendus",
                       style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    subtitle: Text("Quantité: ${vente["quantity"]} - Prix: ${vente["price"]} \nDate: ${vente["date"]}"),
+                    subtitle: Text("Prix: ${vente["price"]} FCFA \nDate: ${vente["date"]}"),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deleteVente(index),
+                      onPressed: () => _deleteVente(vente["id"]),
                     ),
                   ),
                 );
@@ -81,8 +72,10 @@ class _VenteScreenState extends State<VenteScreen> {
             context,
             MaterialPageRoute(builder: (context) => const AddVenteScreen()),
           );
-          if (newVente != null) {
-            _addVente(newVente);
+
+          if (newVente != null && newVente is Map<String, dynamic>) {
+            await VenteService().addVente(newVente);
+            _loadVentes();
           }
         },
         child: const Icon(Icons.add),

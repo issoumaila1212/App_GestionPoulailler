@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:app_poulet/screens/add_cycle_screen.dart';
 import 'package:app_poulet/screens/cycle_detail_screen.dart';
+import 'package:app_poulet/database/cycle_service.dart';
 
 class CycleScreen extends StatefulWidget {
-  
   const CycleScreen({super.key});
 
   @override
@@ -11,41 +11,41 @@ class CycleScreen extends StatefulWidget {
 }
 
 class _CycleScreenState extends State<CycleScreen> {
-  List<Map<String, dynamic>> cycles = [
-    {
-      "name": "Cycle 1 - Poulets de chair",
-      "startDate": "2024-03-01",
-      "status": "En cours",
-      "initialCount": 100,
-    },
-    {
-      "name": "Cycle 2 - Poules pondeuses",
-      "startDate": "2023-09-01",
-      "status": "Terminé",
-      "initialCount": 50,
-    },
-  ];
+  List<Map<String, dynamic>> cycles = [];
 
-  // Fonction pour ajouter un nouveau cycle
-  void _addCycle(Map<String, dynamic> newCycle) {
+  @override
+  void initState() {
+    super.initState();
+    _loadCycles();
+  }
+
+  // 📌 Charger les cycles depuis SQLite
+  Future<void> _loadCycles() async {
+    List<Map<String, dynamic>> data = await CycleService().getCycles();
     setState(() {
-      cycles.add(newCycle);
+      cycles = data;
     });
   }
 
-  // Fonction pour modifier le statut du cycle
-  void _changeStatus(int index) {
-    setState(() {
-      cycles[index]["status"] =
-          cycles[index]["status"] == "En cours" ? "Terminé" : "En cours";
-    });
+  // 📌 Ajouter un cycle dans la base SQLite
+  Future<void> _addCycle(Map<String, dynamic> newCycle) async {
+    await CycleService().addCycle(newCycle);
+    _loadCycles(); // ✅ Recharger la liste après ajout
   }
 
-  // Fonction pour supprimer un cycle
-  void _deleteCycle(int index) {
-    setState(() {
-      cycles.removeAt(index);
-    });
+  // 📌 Changer le statut du cycle (En cours ⬌ Terminé)
+  Future<void> _changeStatus(int index) async {
+    String currentStatus = cycles[index]["status"];
+    String newStatus = (currentStatus == "En cours") ? "Terminé" : "En cours";
+
+    await CycleService().updateCycleStatus(cycles[index]["id"], newStatus);
+    _loadCycles(); // ✅ Recharger la liste après modification
+  }
+
+  // 📌 Supprimer un cycle
+  Future<void> _deleteCycle(int index) async {
+    await CycleService().deleteCycle(cycles[index]["id"]);
+    _loadCycles(); // ✅ Recharger la liste après suppression
   }
 
   @override
@@ -54,51 +54,64 @@ class _CycleScreenState extends State<CycleScreen> {
       appBar: AppBar(
         title: const Text("Gestion des Cycles"),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(16),
-        itemCount: cycles.length,
-        itemBuilder: (context, index) {
-          final cycle = cycles[index];
-          return Card(
-            elevation: 3,
-            margin: const EdgeInsets.only(bottom: 10),
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: ListTile(
-              title: Text(
-                cycle["name"],
-                style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              subtitle: Text("Début: ${cycle["startDate"]} - Statut: ${cycle["status"]}"),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  IconButton(
-                    icon: Icon(
-                      cycle["status"] == "En cours" ? Icons.check_circle : Icons.refresh,
-                      color: cycle["status"] == "En cours" ? Colors.green : Colors.orange,
+      body: cycles.isEmpty
+          ? const Center(
+              child: Text("Aucun cycle enregistré.",
+                  style: TextStyle(fontSize: 16)),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: cycles.length,
+              itemBuilder: (context, index) {
+                final cycle = cycles[index];
+
+                return Card(
+                  elevation: 3,
+                  margin: const EdgeInsets.only(bottom: 10),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: ListTile(
+                    title: Text(
+                      cycle["name"],
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    onPressed: () => _changeStatus(index),
-                  ),
-                  IconButton(
-                    icon: const Icon(Icons.delete, color: Colors.red),
-                    onPressed: () => _deleteCycle(index),
-                  ),
-                ],
-              ),
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => CycleDetailScreen(cycle: cycle),
+                    subtitle: Text(
+                      "Début: ${cycle["start_date"]} - Statut: ${cycle["status"]}",
+                    ),
+                    trailing: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: Icon(
+                            cycle["status"] == "En cours"
+                                ? Icons.check_circle
+                                : Icons.refresh,
+                            color: cycle["status"] == "En cours"
+                                ? Colors.green
+                                : Colors.orange,
+                          ),
+                          onPressed: () => _changeStatus(index),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.delete, color: Colors.red),
+                          onPressed: () => _deleteCycle(index),
+                        ),
+                      ],
+                    ),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => CycleDetailScreen(cycle: cycle),
+                        ),
+                      );
+                    },
                   ),
                 );
               },
             ),
-          );
-        },
-      ),
       floatingActionButton: FloatingActionButton(
         onPressed: () async {
           final newCycle = await Navigator.push(

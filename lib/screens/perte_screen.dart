@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:app_poulet/screens/add_perte_screen.dart';
+import 'package:app_poulet/database/perte_service.dart';
 
 class PerteScreen extends StatefulWidget {
   const PerteScreen({super.key});
@@ -9,33 +10,24 @@ class PerteScreen extends StatefulWidget {
 }
 
 class _PerteScreenState extends State<PerteScreen> {
-  List<Map<String, dynamic>> pertes = [
-    {
-      "cycle": "Cycle 1 - Poulets de chair",
-      "date": "2024-01-10",
-      "cause": "Maladie",
-      "count": 10,
-    },
-    {
-      "cycle": "Cycle 2 - Poules pondeuses",
-      "date": "2024-02-05",
-      "cause": "Chute de température",
-      "count": 3,
-    },
-  ];
+  List<Map<String, dynamic>> pertes = [];
 
-  // ✅ Ajouter une nouvelle perte
-  void _addPerte(Map<String, dynamic> newPerte) {
+  @override
+  void initState() {
+    super.initState();
+    _loadPertes();
+  }
+
+  Future<void> _loadPertes() async {
+    List<Map<String, dynamic>> data = await PerteService().getPertes();
     setState(() {
-      pertes.add(newPerte);
+      pertes = data;
     });
   }
 
-  // ❌ Supprimer une perte
-  void _deletePerte(int index) {
-    setState(() {
-      pertes.removeAt(index);
-    });
+  Future<void> _deletePerte(int id) async {
+    await PerteService().deletePerte(id);
+    _loadPertes();
   }
 
   @override
@@ -43,7 +35,7 @@ class _PerteScreenState extends State<PerteScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Gestion des Pertes"),
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.redAccent,
       ),
       body: pertes.isEmpty
           ? const Center(child: Text("Aucune perte enregistrée."))
@@ -60,27 +52,25 @@ class _PerteScreenState extends State<PerteScreen> {
                   ),
                   child: ListTile(
                     title: Text(
-                      "${perte["cycle"]} - ${perte["cause"]}",
-                      style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                    ),
-                    subtitle: Text("Date: ${perte["date"]} - Nombre: ${perte["count"]}"),
-                    trailing: IconButton(
-                      icon: const Icon(Icons.delete, color: Colors.red),
-                      onPressed: () => _deletePerte(index),
+                      "${perte["cause"]} - ${perte["count"]} perdus",
+                      style: const TextStyle(
+                          fontSize: 18, fontWeight: FontWeight.bold),
                     ),
                   ),
                 );
               },
             ),
       floatingActionButton: FloatingActionButton(
-        backgroundColor: Colors.orange,
+        backgroundColor: Colors.redAccent,
         onPressed: () async {
           final newPerte = await Navigator.push(
             context,
             MaterialPageRoute(builder: (context) => const AddPerteScreen()),
           );
-          if (newPerte != null) {
-            _addPerte(newPerte);
+
+          if (newPerte != null && newPerte is Map<String, dynamic>) {
+            await PerteService().addPerte(newPerte);
+            _loadPertes();
           }
         },
         child: const Icon(Icons.add),
