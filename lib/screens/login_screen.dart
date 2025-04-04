@@ -31,6 +31,7 @@ class LoginScreen extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   // Logo adaptatif
+                  // Utilisation de MediaQuery pour obtenir la taille de l'écran
                   SizedBox(
                     height:
                         screenHeight * 0.3, // Ajuste la taille selon l'écran
